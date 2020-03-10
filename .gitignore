@@ -127,3 +127,12 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# default script log
+./log_analyzer.log
+
+# report folder
+reports/
+
+# folder with nginx logs
+log/
