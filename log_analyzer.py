@@ -18,7 +18,7 @@ default_config = {
     "REPORT_SIZE": 1000,
     "REPORT_DIR": "./reports",
     "LOG_DIR": "./log",
-    'ERR_PERC': 30
+    'ERR_PERC': 0.3
 }
 
 logger = logging.getLogger('main')
@@ -34,9 +34,9 @@ logger.addHandler(ch)
 def open_gz_plain(file_name):
     extension = file_name.split('.')[-1]
     if extension == 'gz':
-        return gzip.open(file_name)
+        return gzip.open(file_name), 'gzip'
     else:
-        return open(file_name)
+        return open(file_name), 'plain'
 
 
 def add_new_url(url, time, report_list):
@@ -67,7 +67,7 @@ def count_time(report_item, time):
     return modified_report_item
 
 
-def mediana(list_: list):
+def median(list_: list):
     length = len(list_)
     list_ = sorted(list_)
     if length == 1:
@@ -115,7 +115,7 @@ def main():
         logger.error(f'No logs in directory {config["LOG_DIR"]}')
         sys.exit()
     # get last file
-    log_file = open_gz_plain(str(config["LOG_DIR"] + '/' + file_list[-1]))
+    log_file = open_gz_plain(str(config["LOG_DIR"] + '/' + file_list[-1]))[0]
     logger.info(f'Reading file: {file_list[-1]}')
     # form report file name
     report_file_name = re.findall(r'[0-9]', file_list[-1])
@@ -131,8 +131,9 @@ def main():
     log_list = []
     errors_count = 0
     # if read 'log_file' for count lines, this generator exhausted before parse
-    log_file_for_count = open_gz_plain(str(config["LOG_DIR"] + '/' + file_list[-1]))
-    log_length = log_file_for_count.read().count('\n')
+    log_file_for_count, file_type = open_gz_plain(str(config["LOG_DIR"] + '/' + file_list[-1]))
+    end_of_string = b'\n' if file_type == 'gzip' else '\n'
+    log_length = log_file_for_count.read().count(end_of_string)
     for line in log_file:
         if (errors_count / log_length) > config['ERR_PERC']:
             logger.error(f'Too much format errors in logfile: {errors_count}')
@@ -177,7 +178,7 @@ def main():
             add_new_url(url, time, report_list)
     # calculate remaining values
     for report_item in report_list:
-        report_item['time_med'] = mediana(report_item['time_med'])
+        report_item['time_med'] = median(report_item['time_med'])
         report_item['count_perc'] = (report_item['count'] / total_count) * 100
         report_item['time_perc'] = (report_item['time_sum'] / total_time) * 100
     # make report file based on template
@@ -186,9 +187,10 @@ def main():
         report_html = report_html.replace('$table_json', json.dumps(sorted(report_list[:config['REPORT_SIZE']],
                                                                            key=lambda i: i['time_sum'], reverse=True)))
     try:
-        with open(config['REPORT_DIR'] + '/' + report_file_name, 'w+') as report_file:
+        with open(config['REPORT_DIR'] + '/report.tmp', 'w+') as report_file:
             report_file.write(report_html)
-            logger.info(f'Report {report_file_name} formed successfull')
+        os.rename(config['REPORT_DIR'] + '/report.tmp', config['REPORT_DIR'] + '/' + report_file_name)
+        logger.info(f'Report {report_file_name} formed successful')
     except IOError:
         logger.error(f'Smth going wrong:\n {IOError}')
 
