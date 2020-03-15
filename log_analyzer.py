@@ -79,7 +79,7 @@ def median(list_: list):
         return med
 
 
-def main():
+def setup_config():
     config = {}
     # check if it is config file in attributes
     if (len(sys.argv)) > 1:
@@ -109,33 +109,97 @@ def main():
         fh.setFormatter(formatter)
         fh.setLevel(logging.INFO)
         logger.addHandler(fh)
+    return config
+
+
+def find_nginx_log_file(config):
     # search for logs
     file_list = [f for f in os.listdir(config["LOG_DIR"]) if re.match(r'^nginx-access-ui.log-[0-9]{8}\.[gz|plain]', f)]
     if len(file_list) < 1:
         logger.error(f'No logs in directory {config["LOG_DIR"]}')
         sys.exit()
     # get last file
-    log_file = open_gz_plain(str(config["LOG_DIR"] + '/' + file_list[-1]))[0]
-    logger.info(f'Reading file: {file_list[-1]}')
+
+    log_file_name = file_list[-1]
+    log_file = open_gz_plain(str(config["LOG_DIR"] + '/' + log_file_name))[0]
+    logger.info(f'Reading file: {log_file_name}')
+    return log_file, log_file_name
+
+
+def get_report_file_name(log_file_name_, config_):
     # form report file name
-    report_file_name = re.findall(r'[0-9]', file_list[-1])
-    report_file_name = 'report-' + \
-                       report_file_name[0] + report_file_name[1] + report_file_name[2] + report_file_name[3] + \
-                       '.' + report_file_name[4] + report_file_name[5] + \
-                       '.' + report_file_name[6] + report_file_name[7] + '.html'
+    report_file_name_ = re.findall(r'[0-9]', log_file_name_)
+    report_file_name_ = 'report-' + \
+                       report_file_name_[0] + report_file_name_[1] + report_file_name_[2] + report_file_name_[3] + \
+                       '.' + report_file_name_[4] + report_file_name_[5] + \
+                       '.' + report_file_name_[6] + report_file_name_[7] + '.html'
     # check report file from previous launches
-    if report_file_name in os.listdir(config['REPORT_DIR']):
-        logger.info(f'Report already exist: {report_file_name}')
+    if report_file_name_ in os.listdir(config_['REPORT_DIR']):
+        logger.info(f'Report already exist: {report_file_name_}')
         sys.exit()
+    return report_file_name_
+
+
+def get_report_list(log_list):
+    # write report list
+    report_list_ = []
+    count = 0
+    total_count = len(log_list)
+    total_time = 0
+    for log_line in log_list:
+        count += 1
+        url = log_line[0]
+        time = log_line[1]
+        total_time += time
+        found = False
+        sys.stdout.write(f'Calculating values progress:({round((count/total_count)*100, 2)}%)[{count}/{total_count}]\r')
+        for report_item in report_list_:
+            if report_item['url'] == url:
+                # calculate values what we can now
+                modified_report_item = count_time(report_item, time)
+                report_item['count'] = modified_report_item['count']
+                report_item['time_avg'] = modified_report_item['time_avg']
+                report_item['time_max'] = modified_report_item['time_max']
+                report_item['time_sum'] = modified_report_item['time_sum']
+                found = True
+                break
+        if not found:
+            add_new_url(url, time, report_list_)
+    # calculate remaining values
+    for report_item in report_list_:
+        report_item['time_med'] = median(report_item['time_med'])
+        report_item['count_perc'] = (report_item['count'] / total_count) * 100
+        report_item['time_perc'] = (report_item['time_sum'] / total_time) * 100
+    return report_list_
+
+
+def make_report_file(report_list_, config_, report_file_name_):
+    # make report file based on template
+    with open('./report.html', 'r') as template_report_file:
+        report_html = template_report_file.read()
+        report_html = report_html.replace('$table_json', json.dumps(sorted(report_list_[:config_['REPORT_SIZE']],
+                                                                           key=lambda i: i['time_sum'], reverse=True)))
+    try:
+        with open(config_['REPORT_DIR'] + '/report.tmp', 'w+') as report_file:
+            report_file.write(report_html)
+        os.rename(config_['REPORT_DIR'] + '/report.tmp', config_['REPORT_DIR'] + '/' + report_file_name_)
+        logger.info(f'Report {report_file_name_} formed successful')
+    except IOError:
+        logger.error(f'Smth going wrong:\n {IOError}')
+
+
+def main(config_):
+    log_file, log_file_name = find_nginx_log_file(config_)
+    report_file_name = get_report_file_name(log_file_name, config_)
     # parse log from file to list
     log_list = []
     errors_count = 0
     # if read 'log_file' for count lines, this generator exhausted before parse
-    log_file_for_count, file_type = open_gz_plain(str(config["LOG_DIR"] + '/' + file_list[-1]))
+    log_file_for_count, file_type = open_gz_plain(str(config_["LOG_DIR"] + '/' + log_file_name))
     end_of_string = b'\n' if file_type == 'gzip' else '\n'
     log_length = log_file_for_count.read().count(end_of_string)
     for line in log_file:
-        if (errors_count / log_length) > config['ERR_PERC']:
+        if (errors_count / log_length) > config_['ERR_PERC']:
             logger.error(f'Too much format errors in logfile: {errors_count}')
             sys.exit()
         if type(line) == bytes:
@@ -151,53 +215,14 @@ def main():
                 errors_count += 1
         else:
             errors_count += 1
-    # write report list
-    report_list = []
-    count = 0
-    total_count = len(log_list)
-    total_time = 0
-    for log_line in log_list:
-        count += 1
-        url = log_line[0]
-        time = log_line[1]
-        total_time += time
-        found = False
-        sys.stdout.write(f'Calculating values progress:({round((count/total_count)*100, 2)}%)[{count}/{total_count}] '
-                         f'Errors: {errors_count}                                                \r')
-        for report_item in report_list:
-            if report_item['url'] == url:
-                # calculate values what we can now
-                modified_report_item = count_time(report_item, time)
-                report_item['count'] = modified_report_item['count']
-                report_item['time_avg'] = modified_report_item['time_avg']
-                report_item['time_max'] = modified_report_item['time_max']
-                report_item['time_sum'] = modified_report_item['time_sum']
-                found = True
-                break
-        if not found:
-            add_new_url(url, time, report_list)
-    # calculate remaining values
-    for report_item in report_list:
-        report_item['time_med'] = median(report_item['time_med'])
-        report_item['count_perc'] = (report_item['count'] / total_count) * 100
-        report_item['time_perc'] = (report_item['time_sum'] / total_time) * 100
-    # make report file based on template
-    with open('./report.html', 'r') as template_report_file:
-        report_html = template_report_file.read()
-        report_html = report_html.replace('$table_json', json.dumps(sorted(report_list[:config['REPORT_SIZE']],
-                                                                           key=lambda i: i['time_sum'], reverse=True)))
-    try:
-        with open(config['REPORT_DIR'] + '/report.tmp', 'w+') as report_file:
-            report_file.write(report_html)
-        os.rename(config['REPORT_DIR'] + '/report.tmp', config['REPORT_DIR'] + '/' + report_file_name)
-        logger.info(f'Report {report_file_name} formed successful')
-    except IOError:
-        logger.error(f'Smth going wrong:\n {IOError}')
+    report_list = get_report_list(log_list)
+    make_report_file(report_list, config_, report_file_name)
 
 
 if __name__ == "__main__":
     try:
-        main()
+        config = setup_config()
+        main(config)
     except KeyboardInterrupt:
         logger.error('Aborted')
         sys.exit(2)
