@@ -13,6 +13,7 @@ import json
 import sys
 import logging
 import argparse
+import statistics
 
 
 default_config = {
@@ -45,7 +46,7 @@ def add_new_url(url, time, report_list):
         'url': url,
         'count': 1,
         'count_perc': 0,
-        'time_avg': time,
+        'time_avg': 0,
         'time_max': time,
         'time_med': [time],
         'time_perc': 0,
@@ -55,13 +56,15 @@ def add_new_url(url, time, report_list):
 
 
 def count_time(report_item, time):
+    time_list = report_item['time_med']
+    time_list.append(time)
     modified_report_item = {
         'url': report_item['url'],
         'count': report_item['count'] + 1,
         'count_perc': 0,
-        'time_avg': (report_item['time_avg'] + time)/2,
+        'time_avg': 0,
         'time_max': time if time > report_item['time_max'] else report_item['time_max'],
-        'time_med': report_item['time_med'].append(time),
+        'time_med': time_list,
         'time_perc': 0,
         'time_sum': report_item['time_sum'] + time
     }
@@ -158,7 +161,6 @@ def get_report_list(log_list):
                 # calculate values what we can now
                 modified_report_item = count_time(report_item, time)
                 report_item['count'] = modified_report_item['count']
-                report_item['time_avg'] = modified_report_item['time_avg']
                 report_item['time_max'] = modified_report_item['time_max']
                 report_item['time_sum'] = modified_report_item['time_sum']
                 found = True
@@ -167,6 +169,7 @@ def get_report_list(log_list):
             add_new_url(url, time, report_list_)
     # calculate remaining values
     for report_item in report_list_:
+        report_item['time_avg'] = statistics.mean(report_item['time_med'])
         report_item['time_med'] = median(report_item['time_med'])
         report_item['count_perc'] = (report_item['count'] / total_count) * 100
         report_item['time_perc'] = (report_item['time_sum'] / total_time) * 100
@@ -194,7 +197,7 @@ def main(config_):
     # parse log from file to list
     log_list = []
     errors_count = 0
-    # if read 'log_file' for count lines, this generator exhausted before parse
+    # if read 'log_file' for count lines, that generator exhausted before parse, so we get new one
     log_file_for_count, file_type = open_gz_plain(str(config_["LOG_DIR"] + '/' + log_file_name))
     end_of_string = b'\n' if file_type == 'gzip' else '\n'
     log_length = log_file_for_count.read().count(end_of_string)
