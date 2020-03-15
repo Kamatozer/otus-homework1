@@ -2,12 +2,14 @@ import log_analyzer
 import argparse
 
 
-def test_file_gz():
-    pass
-
-
-def test_file_plain():
-    pass
+def test_open_gz_plain():
+    success_string = b'1.196.116.32 -  - [29/Jun/2017:03:50:22 +0300] "GET /api/v2/banner/25019354 HTTP/1.1" 200 927 "-" "Lynx/2.8.8dev.9 libwww-FM/2.14 SSL-MM/1.4.1 GNUTLS/2.10.5" "-" "1498697422-2190034393-4708-9752759" "dc7161be3" 0.390\r\n'
+    gz_file_path = './tests/test_nginx_logs/nginx-access-ui.log-20170801.gz'
+    plain_file_path = './tests/test_nginx_logs/nginx-access-ui.log-20170801.plain'
+    gz_file, gz_type = log_analyzer.open_gz_plain(gz_file_path)
+    line = gz_file.read() # TODO read 1st line
+    assert line == success_string, f'string:\n{line}\nshould be:\n{success_string}'
+    assert gz_type == 'gzip', 'should be gzip'
 
 
 def test_add_new_url():
@@ -117,6 +119,7 @@ def test_report_file():
 
 
 if __name__ == "__main__":
+    test_open_gz_plain()
     test_add_new_url()
     test_count_time()
     test_median()

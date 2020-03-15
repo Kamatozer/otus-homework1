@@ -83,17 +83,17 @@ def median(list_: list):
         return med
 
 
-def setup_config(args):
+def setup_config(args_):
     config_ = {}
-    if args.config:
+    if args_.config:
         try:
-            with open(args.config) as f:
+            with open(args_.config) as f:
                 try:
                     config_ = json.load(f)
                 except json.decoder.JSONDecodeError:
                     print('Wrong config format or file empty\nUsing default config')
         except IOError:
-            print(f'Could not read file: {args.config}\nUsing default config')
+            print(f'Could not read file: {args_.config}\nUsing default config')
     # check is config from file have needed values, if not - use defaults
     if 'REPORT_SIZE' not in config_:
         config_['REPORT_SIZE'] = default_config['REPORT_SIZE']
