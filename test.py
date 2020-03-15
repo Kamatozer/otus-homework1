@@ -1,4 +1,5 @@
 import log_analyzer
+import argparse
 
 
 def test_file_gz():
@@ -59,7 +60,43 @@ def test_median():
     assert median == 0.6, f'median: {median}, should be 0.6'
 
 
-def test_config_load():
+def test_custom_config_load():
+    args1 = argparse.Namespace(config=None)
+    args2 = argparse.Namespace(config='./tests/test_config.json')
+    args3 = argparse.Namespace(config='./tests/no_file')
+    args4 = argparse.Namespace(config='./tests/empty.json')
+    args5 = argparse.Namespace(config='./tests/not_full.json')
+    test_config1 = log_analyzer.setup_config(args1)
+    test_config2 = log_analyzer.setup_config(args2)
+    test_config3 = log_analyzer.setup_config(args3)
+    test_config4 = log_analyzer.setup_config(args4)
+    test_config5 = log_analyzer.setup_config(args5)
+    success_config1 = {
+        'REPORT_SIZE': 1000,
+        'REPORT_DIR': './reports',
+        'LOG_DIR': './log',
+        'ERR_PERC': 0.3,
+        'SCRIPT_LOG': None
+    }
+    success_config2 = {
+        'REPORT_SIZE': 10,
+        'REPORT_DIR': './reports',
+        'LOG_DIR': './log',
+        'ERR_PERC': 0.1,
+        'SCRIPT_LOG': './'
+    }
+    success_config3 = {
+        'REPORT_SIZE': 1,
+        'REPORT_DIR': './reports',
+        'LOG_DIR': './log',
+        'ERR_PERC': 0.3,
+        'SCRIPT_LOG': None
+    }
+    assert test_config1 == success_config1, f'config:\n{test_config1}\nshould be:\n{success_config1}'
+    assert test_config2 == success_config2, f'config:\n{test_config2}\nshould be:\n{success_config2}'
+    assert test_config3 == success_config1, f'config:\n{test_config3}\nshould be:\n{success_config1}'
+    assert test_config4 == success_config1, f'config:\n{test_config4}\nshould be:\n{success_config1}'
+    assert test_config5 == success_config3, f'config:\n{test_config5}\nshould be:\n{success_config3}'
     pass
 
 
@@ -83,4 +120,5 @@ if __name__ == "__main__":
     test_add_new_url()
     test_count_time()
     test_median()
+    test_custom_config_load()
     print("Everything passed")

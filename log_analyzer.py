@@ -83,11 +83,8 @@ def median(list_: list):
         return med
 
 
-def setup_config():
+def setup_config(args):
     config_ = {}
-    parser = argparse.ArgumentParser(description='get config file')
-    parser.add_argument('--config', help='config file path')
-    args = parser.parse_args()
     if args.config:
         try:
             with open(args.config) as f:
@@ -224,7 +221,10 @@ def main(config_):
 
 if __name__ == "__main__":
     try:
-        config = setup_config()
+        parser = argparse.ArgumentParser(description='get config file')
+        parser.add_argument('--config', help='config file path')
+        args = parser.parse_args()
+        config = setup_config(args)
         main(config)
     except KeyboardInterrupt:
         logger.error('Aborted')
