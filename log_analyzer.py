@@ -12,6 +12,7 @@ import gzip
 import json
 import sys
 import logging
+import argparse
 
 
 default_config = {
@@ -81,17 +82,18 @@ def median(list_: list):
 
 def setup_config():
     config_ = {}
-    # check if it is config file in attributes
-    if (len(sys.argv)) > 1:
-        if sys.argv[1] == '--config':
-            try:
-                with open(sys.argv[2]) as f:
-                    try:
-                        config_ = json.load(f)
-                    except json.decoder.JSONDecodeError:
-                        print('Wrong config format or file empty\nUsing default config')
-            except IOError:
-                print(f'Could not read file: {sys.argv[2]}\nUsing default config')
+    parser = argparse.ArgumentParser(description='get config file')
+    parser.add_argument('--config', help='config file path')
+    args = parser.parse_args()
+    if args.config:
+        try:
+            with open(args.config) as f:
+                try:
+                    config_ = json.load(f)
+                except json.decoder.JSONDecodeError:
+                    print('Wrong config format or file empty\nUsing default config')
+        except IOError:
+            print(f'Could not read file: {args.config}\nUsing default config')
     # check is config from file have needed values, if not - use defaults
     if 'REPORT_SIZE' not in config_:
         config_['REPORT_SIZE'] = default_config['REPORT_SIZE']
