@@ -80,59 +80,57 @@ def median(list_: list):
 
 
 def setup_config():
-    config = {}
+    config_ = {}
     # check if it is config file in attributes
     if (len(sys.argv)) > 1:
         if sys.argv[1] == '--config':
             try:
                 with open(sys.argv[2]) as f:
                     try:
-                        config = json.load(f)
+                        config_ = json.load(f)
                     except json.decoder.JSONDecodeError:
                         print('Wrong config format or file empty\nUsing default config')
             except IOError:
                 print(f'Could not read file: {sys.argv[2]}\nUsing default config')
     # check is config from file have needed values, if not - use defaults
-    if 'REPORT_SIZE' not in config:
-        config['REPORT_SIZE'] = default_config['REPORT_SIZE']
-    if 'REPORT_DIR' not in config:
-        config['REPORT_DIR'] = default_config['REPORT_DIR']
-    if 'LOG_DIR' not in config:
-        config['LOG_DIR'] = default_config['LOG_DIR']
-    if 'ERR_PERC' not in config:
-        config['ERR_PERC'] = default_config['ERR_PERC']
-    if 'SCRIPT_LOG' not in config:
-        config['SCRIPT_LOG'] = None
+    if 'REPORT_SIZE' not in config_:
+        config_['REPORT_SIZE'] = default_config['REPORT_SIZE']
+    if 'REPORT_DIR' not in config_:
+        config_['REPORT_DIR'] = default_config['REPORT_DIR']
+    if 'LOG_DIR' not in config_:
+        config_['LOG_DIR'] = default_config['LOG_DIR']
+    if 'ERR_PERC' not in config_:
+        config_['ERR_PERC'] = default_config['ERR_PERC']
+    if 'SCRIPT_LOG' not in config_:
+        config_['SCRIPT_LOG'] = None
     # Set log to file if need
-    if config['SCRIPT_LOG'] is not None:
-        fh = logging.FileHandler(config['SCRIPT_LOG'] + '/' + 'log_analyzer.log')
+    if config_['SCRIPT_LOG'] is not None:
+        fh = logging.FileHandler(config_['SCRIPT_LOG'] + '/' + 'log_analyzer.log')
         fh.setFormatter(formatter)
         fh.setLevel(logging.INFO)
         logger.addHandler(fh)
-    return config
+    return config_
 
 
-def find_nginx_log_file(config):
+def find_nginx_log_file(config_):
     # search for logs
-    file_list = [f for f in os.listdir(config["LOG_DIR"]) if re.match(r'^nginx-access-ui.log-[0-9]{8}\.[gz|plain]', f)]
+    file_list = [f for f in os.listdir(config_["LOG_DIR"]) if re.match(r'^nginx-access-ui.log-[0-9]{8}\.[gz|plain]', f)]
     if len(file_list) < 1:
-        logger.error(f'No logs in directory {config["LOG_DIR"]}')
+        logger.error(f'No logs in directory {config_["LOG_DIR"]}')
         sys.exit()
     # get last file
 
     log_file_name = file_list[-1]
-    log_file = open_gz_plain(str(config["LOG_DIR"] + '/' + log_file_name))[0]
+    log_file = open_gz_plain(str(config_["LOG_DIR"] + '/' + log_file_name))[0]
     logger.info(f'Reading file: {log_file_name}')
     return log_file, log_file_name
 
 
 def get_report_file_name(log_file_name_, config_):
     # form report file name
-    report_file_name_ = re.findall(r'[0-9]', log_file_name_)
-    report_file_name_ = 'report-' + \
-                       report_file_name_[0] + report_file_name_[1] + report_file_name_[2] + report_file_name_[3] + \
-                       '.' + report_file_name_[4] + report_file_name_[5] + \
-                       '.' + report_file_name_[6] + report_file_name_[7] + '.html'
+    log_date = re.findall(r'[0-9]', log_file_name_)
+    report_file_name_ = 'report-' + log_date[0] + log_date[1] + log_date[2] + log_date[3] + '.' \
+                        + log_date[4] + log_date[5] + '.' + log_date[6] + log_date[7] + '.html'
     # check report file from previous launches
     if report_file_name_ in os.listdir(config_['REPORT_DIR']):
         logger.info(f'Report already exist: {report_file_name_}')
