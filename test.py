@@ -106,9 +106,30 @@ def test_custom_config_load():
     assert test_config5 == success_config3, f'config:\n{test_config5}\nshould be:\n{success_config3}'
     pass
 
+def find_nginx_log_file(config_):
+    # search for logs
+    file_list = [f for f in os.listdir(config_["LOG_DIR"]) if re.match(r'^nginx-access-ui.log-[0-9]{8}\.[gz|plain]', f)]
+    if len(file_list) < 1:
+        logger.error(f'No logs in directory {config_["LOG_DIR"]}')
+        sys.exit()
+    # get last file
+
+    log_file_name = file_list[-1]
+    log_file = open_gz_plain(str(config_["LOG_DIR"] + '/' + log_file_name))[0]
+    logger.info(f'Reading file: {log_file_name}')
+    return log_file, log_file_name
+
 
 def test_find_log():
-    pass
+    test_config = {
+        'LOG_DIR': './tests/test_nginx_logs'
+    }
+    success_log_file_name = 'nginx-access-ui.log-20170901.plain'
+    log_file, log_file_name = log_analyzer.find_nginx_log_file(test_config)
+    assert log_file.read() == 'success', f'log_file:\n{log_file}\n' \
+                                         f'should be:\nnginx-access-ui.log-20170901.plain'
+    assert log_file_name == success_log_file_name, f'log_file_name:\n{log_file_name}\n' \
+                                                   f'should be:\n{success_log_file_name}'
 
 
 def test_get_report_file_name():
@@ -129,4 +150,5 @@ if __name__ == "__main__":
     test_count_time()
     test_median()
     test_custom_config_load()
+    test_find_log()
     print("Everything passed")

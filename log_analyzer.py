@@ -116,7 +116,7 @@ def setup_config(args_):
 
 def find_nginx_log_file(config_):
     # search for logs
-    file_list = [f for f in os.listdir(config_["LOG_DIR"]) if re.match(r'^nginx-access-ui.log-[0-9]{8}\.[gz|plain]', f)]
+    file_list = [f for f in os.listdir(config_["LOG_DIR"]) if re.match(r'^nginx-access-ui.log-[0-9]{8}\.(gz|plain)$', f)]
     if len(file_list) < 1:
         logger.error(f'No logs in directory {config_["LOG_DIR"]}')
         sys.exit()
