@@ -91,9 +91,9 @@ def setup_config(args_):
                 try:
                     config_ = json.load(f)
                 except json.decoder.JSONDecodeError:
-                    print('Wrong config format or file empty\nUsing default config')
+                    logger.error('Wrong config format or file empty\nUsing default config')
         except IOError:
-            print(f'Could not read file: {args_.config}\nUsing default config')
+            logger.error(f'Could not read file: {args_.config}\nUsing default config')
     # check is config from file have needed values, if not - use defaults
     if 'REPORT_SIZE' not in config_:
         config_['REPORT_SIZE'] = default_config['REPORT_SIZE']
@@ -107,7 +107,7 @@ def setup_config(args_):
         config_['SCRIPT_LOG'] = None
     # Set log to file if need
     if config_['SCRIPT_LOG'] is not None:
-        fh = logging.FileHandler(config_['SCRIPT_LOG'] + '/' + 'log_analyzer.log')
+        fh = logging.FileHandler(config_['SCRIPT_LOG'] + '/' + __name__ + '.log')
         fh.setFormatter(formatter)
         fh.setLevel(logging.INFO)
         logger.addHandler(fh)

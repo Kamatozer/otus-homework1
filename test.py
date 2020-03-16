@@ -1,6 +1,8 @@
 import log_analyzer
 import argparse
 
+log_analyzer.logging.disable(log_analyzer.logging.CRITICAL)
+
 
 def test_open_gz_plain():
     gz_success_string = b'1.196.116.32 -  - [29/Jun/2017:03:50:22 +0300] "GET /api/v2/banner/25019354 HTTP/1.1" 200 927 "-" "Lynx/2.8.8dev.9 libwww-FM/2.14 SSL-MM/1.4.1 GNUTLS/2.10.5" "-" "1498697422-2190034393-4708-9752759" "dc7161be3" 0.390\r\n'
@@ -104,20 +106,6 @@ def test_custom_config_load():
     assert test_config3 == success_config1, f'config:\n{test_config3}\nshould be:\n{success_config1}'
     assert test_config4 == success_config1, f'config:\n{test_config4}\nshould be:\n{success_config1}'
     assert test_config5 == success_config3, f'config:\n{test_config5}\nshould be:\n{success_config3}'
-    pass
-
-def find_nginx_log_file(config_):
-    # search for logs
-    file_list = [f for f in os.listdir(config_["LOG_DIR"]) if re.match(r'^nginx-access-ui.log-[0-9]{8}\.[gz|plain]', f)]
-    if len(file_list) < 1:
-        logger.error(f'No logs in directory {config_["LOG_DIR"]}')
-        sys.exit()
-    # get last file
-
-    log_file_name = file_list[-1]
-    log_file = open_gz_plain(str(config_["LOG_DIR"] + '/' + log_file_name))[0]
-    logger.info(f'Reading file: {log_file_name}')
-    return log_file, log_file_name
 
 
 def test_find_log():
@@ -133,15 +121,96 @@ def test_find_log():
 
 
 def test_get_report_file_name():
-    pass
+    log_file_name = 'nginx-access-ui.log-20170901.plain'
+    test_config = {
+        'REPORT_DIR': './'
+    }
+    report_file_name = log_analyzer.get_report_file_name(log_file_name, test_config)
+    success_report_file_name = 'report-2017.09.01.html'
+    assert report_file_name == success_report_file_name, f'report_file_name: {report_file_name}\n' \
+                                                         f'should be: {success_report_file_name}'
 
 
 def test_get_report_list():
-    pass
+    test_log_list = [['a', 3], ['a', 2], ['b', 5], ['c', 10]]
+    report_list = log_analyzer.get_report_list(test_log_list)
+    success_report_list = [
+        {
+            'url': 'a',
+            'count': 2,
+            'count_perc': 50.0,
+            'time_avg': 2.5,
+            'time_max': 3,
+            'time_med': 2.5,
+            'time_perc': 25.0,
+            'time_sum': 5
+        },
+        {
+            'url': 'b',
+            'count': 1,
+            'count_perc': 25.0,
+            'time_avg': 5,
+            'time_max': 5,
+            'time_med': 5,
+            'time_perc': 25.0,
+            'time_sum': 5
+        },
+        {
+            'url': 'c',
+            'count': 1,
+            'count_perc': 25.0,
+            'time_avg': 10,
+            'time_max': 10,
+            'time_med': 10,
+            'time_perc': 50.0,
+            'time_sum': 10
+        }]
+    assert report_list == success_report_list, f'report list:\n{report_list}\nshould be:\n{success_report_list}'
 
 
 def test_report_file():
-    pass
+    report_list = [
+        {
+            'url': 'a',
+            'count': 2,
+            'count_perc': 50.0,
+            'time_avg': 2.5,
+            'time_max': 3,
+            'time_med': 2.5,
+            'time_perc': 25.0,
+            'time_sum': 5
+        },
+        {
+            'url': 'b',
+            'count': 1,
+            'count_perc': 25.0,
+            'time_avg': 5,
+            'time_max': 5,
+            'time_med': 5,
+            'time_perc': 25.0,
+            'time_sum': 5
+        },
+        {
+            'url': 'c',
+            'count': 1,
+            'count_perc': 25.0,
+            'time_avg': 10,
+            'time_max': 10,
+            'time_med': 10,
+            'time_perc': 50.0,
+            'time_sum': 10
+        }]
+    test_config = {
+        'REPORT_SIZE': 1,
+        'REPORT_DIR': './tests'
+    }
+    report_file_name = 'test_report_file.html'
+    log_analyzer.make_report_file(report_list, test_config, report_file_name)
+    success_string = 'var table = [{"url": "a", "count": 2, "count_perc": 50.0, "time_avg": 2.5, "time_max": 3, "time_med": 2.5, "time_perc": 25.0, "time_sum": 5}];'
+    with open(test_config['REPORT_DIR'] + '/' + report_file_name) as f:
+        assert success_string in f.read(), 'wrong table in ./tests/test_report_file.html'
+    import os
+    os.remove(test_config['REPORT_DIR'] + '/' + report_file_name)
 
 
 if __name__ == "__main__":
@@ -151,4 +220,7 @@ if __name__ == "__main__":
     test_median()
     test_custom_config_load()
     test_find_log()
+    test_get_report_file_name()
+    test_get_report_list()
+    test_report_file()
     print("Everything passed")
